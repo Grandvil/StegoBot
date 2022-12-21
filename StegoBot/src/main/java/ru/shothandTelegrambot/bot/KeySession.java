@@ -1,4 +1,4 @@
-package ru.shothandyelegrambot.bot;
+package ru.shothandTelegrambot.bot;
 
 public class KeySession {
     public long idChat;

@@ -12,7 +12,7 @@ import java.util.Iterator;
 //core class for coder
 public class Core {
     //3 minutes life of result coded
-    static int lifeCycleTaskSec=30;//180;
+    static int lifeCycleTaskSec=180;
     static int sleepThread=200; //200ms sleep
     Thread threadCleanup;
     CoderThread coderThread;

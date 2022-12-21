@@ -1,4 +1,4 @@
-package ru.shothandyelegrambot.bot.commands;
+package ru.shothandTelegrambot.bot.commands;
 
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.bots.AbsSender;

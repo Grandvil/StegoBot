@@ -12,7 +12,7 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="ShorthandRestService" options="-endorseddirs D:\Downloads\Shothland-main\Shothland-main\ShorthandRestService\target/endorsed" />
+      <module name="ShorthandRestService" options="-endorseddirs D:\ShorthandTelegramBot\ShorthandTelegramBot\ShorthandRestService\target/endorsed" />
     </option>
   </component>
 </project>

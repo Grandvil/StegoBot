@@ -1,17 +1,16 @@
-package ru.shothandyelegrambot.bot;
+package ru.shothandTelegrambot.bot;
 
-import com.google.zxing.WriterException;
 import org.json.JSONObject;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import ru.shothandyelegrambot.bot.commands.CommandHelp;
-import ru.shothandyelegrambot.bot.commands.CommandStart;
-import ru.shothandyelegrambot.bot.commands.CommandCoder;
-import ru.shothandyelegrambot.bot.commands.CommandReSendResult;
-import ru.shothandyelegrambot.bot.commands.CommandServiceStatus;
-import ru.shothandyelegrambot.bot.commands.CommandStartSession;
-import ru.shothandyelegrambot.bot.commands.CommandTaskStatus;
-import ru.shothandyelegrambot.core.exceptions.UserException;
+import ru.shothandTelegrambot.bot.commands.CommandHelp;
+import ru.shothandTelegrambot.bot.commands.CommandStart;
+import ru.shothandTelegrambot.bot.commands.CommandCoder;
+import ru.shothandTelegrambot.bot.commands.CommandSendResult;
+import ru.shothandTelegrambot.bot.commands.CommandServiceStatus;
+import ru.shothandTelegrambot.bot.commands.CommandStartSession;
+import ru.shothandTelegrambot.bot.commands.CommandTaskStatus;
+import ru.shothandTelegrambot.core.exceptions.UserException;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.extensions.bots.commandbot.TelegramLongPollingCommandBot;
 import org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand;
@@ -21,17 +20,20 @@ import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
-import ru.shothandyelegrambot.qr.QRTools;
+import ru.shothandTelegrambot.httpClient.HttpClient;
 
-import java.io.File;
-import java.io.IOException;
+import javax.imageio.ImageIO;
+import java.io.*;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
 @Slf4j
 public class BotProcessor extends TelegramLongPollingCommandBot {
 
+    HttpClient httpClient = new HttpClient();
     private final static int TEXT_LIMIT = 512;
     private final static BotSettings botSettings = BotSettings.getInstance();
     private static BotProcessor instance;
@@ -104,7 +106,7 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
                 }
             } catch (UserException e) {
                 sendMessage(update.getMessage().getChatId(), e.getMessage());
-            } catch (TelegramApiException | RuntimeException | IOException | WriterException e) {
+            } catch (TelegramApiException | RuntimeException | IOException  e) {
                 log.error(String.format("Received message processing error: %s", e.getMessage()));
                 sendMessage(update.getMessage().getChatId(), "Ошибка обработки сообщения");
             }
@@ -121,20 +123,8 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         super.onRegister();
     }
 
-    private void processText(Update update) throws TelegramApiException, IOException, WriterException, UserException {
-        String text = update.getMessage().getText();
-        logMessage(
-                update.getMessage().getChatId(),
-                update.getMessage().getFrom().getId(),
-                true,
-                text);
-        if (text.length() > TEXT_LIMIT) {
-            log.error(String.format("Message exceeds maximum length of %d", TEXT_LIMIT));
-            throw new UserException(String.format("Сообщение превышает максимальную длину %d символов", TEXT_LIMIT));
-        }
-        String imageUrl = QRTools.encodeText(text);
-        logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), false, "$image");
-        sendQRImage(update.getMessage().getChatId(), imageUrl);
+    private void processText(Update update) throws TelegramApiException, IOException, UserException {
+        sendMessage(update.getMessage().getChatId(), "Ошибка команды. Пришлите /help");
     }
 
     private MessageType getMessageType(Update update) throws UserException {
@@ -155,13 +145,36 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         }
     }
 
+
     private void processImage(Update update) throws TelegramApiException, IOException, UserException {
         logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), true, "$image");
-        List<PhotoSize> photoSizes = update.getMessage().getPhoto();
-        String fileUrl = getFileUrl(update.getMessage().getPhoto().get(photoSizes.size() - 1).getFileId());
-        String text = QRTools.getTextFromQR(fileUrl);
-        logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), false, text);
-        sendMessage(update.getMessage().getChatId(), text);
+
+        try {
+                List<PhotoSize> photoSizes = update.getMessage().getPhoto();
+                String fileUrl = getFileUrl(update.getMessage().getPhoto().get(photoSizes.size() - 1).getFileId());
+
+            String messageStr= update.getMessage().getCaption();
+            String cmd=messageStr.substring(0,messageStr.indexOf(' '));
+            messageStr=messageStr.substring(messageStr.indexOf(' ')+1);
+            if (!cmd.equals("/coder")){
+                sendMessage(update.getMessage().getChatId(), "Ошибка команды - не распознана");
+                return;
+            }
+
+            if ( messageStr.isEmpty()){
+                sendMessage(update.getMessage().getChatId(), "Ошибка команды - нет текста для кодирования");
+                return;
+            }
+
+            String answer=httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)),"jpg"),
+                    Utils.getKeyByIdChat(update.getMessage().getChatId()), messageStr);
+
+            sendMessage(update.getMessage().getChatId(), answer);
+
+        } catch (Exception e) {
+            sendMessage(update.getMessage().getChatId(), "Ошибка команды");
+            return;
+        }
     }
 
     private JSONObject getFileRequest(String fileId) throws IOException {
@@ -195,10 +208,10 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         register(new CommandStart());
         register(new CommandHelp());
         register(new CommandStartSession());
-        register(new CommandCoder());
-        register(new CommandReSendResult());
-        register(new CommandServiceStatus());
-        register(new CommandTaskStatus());
+        register(new CommandCoder(httpClient));
+        register(new CommandSendResult(httpClient));
+        register(new CommandServiceStatus(httpClient));
+        register(new CommandTaskStatus(httpClient));
         setRegisteredCommands();
     }
 

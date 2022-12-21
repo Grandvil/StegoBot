@@ -1,6 +1,6 @@
-package ru.shothandyelegrambot;
+package ru.shothandTelegrambot;
 
-import ru.shothandyelegrambot.bot.BotProcessor;
+import ru.shothandTelegrambot.bot.BotProcessor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

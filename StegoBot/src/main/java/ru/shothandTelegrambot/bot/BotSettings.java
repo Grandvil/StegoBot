@@ -1,4 +1,4 @@
-package ru.shothandyelegrambot.bot;
+package ru.shothandTelegrambot.bot;
 
 import lombok.Data;
 import org.telegram.telegrambots.meta.TelegramBotsApi;

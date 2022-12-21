@@ -1,4 +1,4 @@
-package ru.shothandyelegrambot.bot.commands;
+package ru.shothandTelegrambot.bot.commands;
 
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -13,10 +13,10 @@ public class CommandHelp extends Command {
                 "/start - начало работы с ботом\n" +
                 "/startsession мой_ключ - начало сессии с использованием стегоключа (команду вводите вручную, написав через пробел ключ)\n" +
                 "/ss - статус сервиса\n" +
-                "/ts {id}- статус задачи (номер задачи через пробел после ts)\n" +
+                "/ts номер_задачи - статус задачи\n" +
                 "/coder - кодирование текста в прикрепленное изображение к сообщению\n" +
                 "Пример: /coder \"моё сообщение\" (вместе с командой необходимо прикрепить изображение в одном сообщении)\n"+
-                "/rs - прислать результат повторно (если доступен)\n" +
+                "/sr номер_задачи - прислать результат (если доступен)\n" +
                 "/help - помощь\n\n" );
         super.processMessage(absSender, message, strings);
     }

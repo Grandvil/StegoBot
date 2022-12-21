@@ -8,13 +8,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="ShorthandTelegramBot" />
-        <module name="ShorthandTelegramBot" />
+        <module name="StegoBot" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="ShorthandTelegramBot" target="11" />
-      <module name="ShorthandTelegramBot" target="11" />
-      <module name="ShorthandTelegramBot" target="11" />
+      <module name="StegoBot" target="11" />
     </bytecodeTargetLevel>
   </component>
 </project>

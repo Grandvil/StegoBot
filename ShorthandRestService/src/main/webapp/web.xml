@@ -7,7 +7,7 @@
 
     <listener>
         <listener-class>
-            ru.ShorthandRestService.ContextListner
+            ru.ShorthandRestService.RestServiceContextListner
         </listener-class>
     </listener>
 

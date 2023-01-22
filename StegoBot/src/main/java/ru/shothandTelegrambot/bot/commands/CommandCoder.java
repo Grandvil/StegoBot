@@ -57,7 +57,7 @@ public class CommandCoder extends Command {
                 return;
             }
             httpClient.sendFileToCoderService(imgToBase64String(ImageIO.read(new URL(fileUrl)),"jpg"),
-                    Utils.getKeyByIdChat(message.getChatId()), Arrays.toString(strings));
+                    Utils.getKeyByIdChat(message.getChatId()), Arrays.toString(strings),true);
         } catch (Exception e) {
             message.setText("Ошибка команды");
             super.processMessage(absSender, message, null);

@@ -1,0 +1,65 @@
+@startuml
+class ru.ShorthandRestService.ContextListner {
+~ Core core
++ void contextInitialized(ServletContextEvent)
++ void contextDestroyed(ServletContextEvent)
+}
+class ru.ShorthandRestService.RestConfig {
+}
+class ru.Shorthand.Core {
+~ {static} int lifeCycleTaskSec
+~ {static} int sleepThread
+~ Thread threadCleanup
+~ CoderThread coderThread
+~ ServiceStatus status
++ SimpleDateFormat dateFormat
+~ ArrayList<Task> tasks
+~ boolean threadCleanupRun
++ void Stop()
+~ void TaskCleanupThread()
++ String getServiceStatus()
++ String getTaskState(int)
++ String getResultTask(int)
++ String addNewTask(String,String,String)
+}
+class ru.Shorthand.CoderThread {
+~ {static} int countCoderThreads
+~ Thread threadCoder
++ boolean Run
+~ void CoderStart(ArrayList<Task>)
+}
+enum ru.Shorthand.Enums.TaskStatus {
++  ACTIVE
++  INQUEUE
++  READY
++  FAULT
++  NOTFOUND
+}
+enum ru.Shorthand.Enums.ServiceStatus {
++  ACTIVE
++  FLUSH
++  INACTIVE
+}
+class ru.Shorthand.Task {
++ Date dateAdd
++ Date dateComplete
+~ TaskStatus status
+~ String image
+~ String key
+~ String text
+~ boolean deleted
+}
+class ru.ShorthandRestService.RestService {
+- {static} long serialVersionUID
+~ String buildBadCommand(String)
++ void init()
++ void doGet(HttpServletRequest,HttpServletResponse)
+}
+enum ru.Shorthand.Enums.CoderErrors {
+}
+
+
+jakarta.servlet.ServletContextListener <|.. ru.ShorthandRestService.ContextListner
+javax.ws.rs.core.Application <|-- ru.ShorthandRestService.RestConfig
+jakarta.servlet.http.HttpServlet <|-- ru.ShorthandRestService.RestService
+@enduml

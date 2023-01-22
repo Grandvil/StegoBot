@@ -1,0 +1,125 @@
+@startuml
+class ru.shothandTelegrambot.bot.KeySession {
++ long idChat
++ String key
+}
+class ru.shothandTelegrambot.bot.Utils {
++ {static} Map<String,String> mapStatusService
++ {static} Map<String,String> mapTaskState
++ {static} ArrayList<KeySession> KeySessions
+- {static} KeySession findKeyByIdChat(long)
++ {static} String getKeyByIdChat(long)
++ {static} void addOrUpdateKey(String,long)
++ {static} String imgToBase64String(RenderedImage,String)
++ {static} BufferedImage base64StringToImg(String)
++ {static} String getUserName(Message)
++ {static} String getUserName(User)
+}
+class ru.shothandTelegrambot.bot.commands.CommandHelp {
++ void processMessage(AbsSender,Message,String[])
+}
+abstract class ru.shothandTelegrambot.bot.commands.Command {
+~ HttpClient httpClient
+- String commandIdentifier
+- String description
++ String getCommandIdentifier()
++ String getDescription()
++ void processDocument(AbsSender,SendDocument)
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.bot.commands.CommandCoder {
+~ HttpClient httpClient
++ {static} String imgToBase64String(RenderedImage,String)
++ {static} BufferedImage base64StringToImg(String)
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.bot.BotSettings {
++ {static} String FILE_NAME
+- {static} BotSettings instance
+- Properties properties
+- String token
+- String userName
+- TelegramBotsApi telegramBotsApi
++ {static} BotSettings getInstance()
+}
+enum ru.shothandTelegrambot.bot.MessageType {
++  TEXT
++  IMAGE
++  COMMAND
+}
+class ru.shothandTelegrambot.bot.commands.CommandServiceStatus {
+~ HttpClient httpClient
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.bot.commands.CommandStart {
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.bot.commands.CommandTaskStatus {
+~ HttpClient httpClient
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.bot.commands.CommandStartSession {
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.bot.commands.CommandSendResult {
+~ HttpClient httpClient
++ void processMessage(AbsSender,Message,String[])
+}
+class ru.shothandTelegrambot.core.exceptions.UserException {
+}
+class ru.shothandTelegrambot.httpClient.HttpClient {
+~ String restServiceUrl
+~ org.apache.commons.httpclient.HttpClient httpClient
++ String getStatusService()
++ String getTaskStateService(String)
++ String sendFileToCoderService(String,String,String)
++ BufferedImage getFileFromCoderService(String)
+}
+class ru.shothandTelegrambot.bot.IOTools {
+- {static} int BUFFER_SIZE
+- {static} Charset DEFAULT_CHARSET
++ {static} JSONObject readJsonFromUrl(String)
+- {static} String readFileFromUrl(String)
+}
+class ru.shothandTelegrambot.bot.BotProcessor {
+~ HttpClient httpClient
+- {static} int TEXT_LIMIT
+- {static} BotSettings botSettings
+- {static} BotProcessor instance
+- TelegramBotsApi telegramBotsApi
+- List<String> registeredCommands
++ void sendMessage(Long,String)
++ void sendImage(Long,String)
++ void sendQRImage(Long,String)
++ String getBotUsername()
+# void processInvalidCommandUpdate(Update)
++ void processNonCommandUpdate(Update)
++ String getBotToken()
++ void onRegister()
+- void processText(Update)
+- MessageType getMessageType(Update)
+- void processImage(Update)
+- JSONObject getFileRequest(String)
++ String getFileUrl(String)
+- void logMessage(Long,Long,boolean,String)
+- void setRegisteredCommands()
+- void registerCommands()
++ void registerBot()
++ {static} BotProcessor getInstance()
+}
+class ru.shothandTelegrambot.Main {
++ {static} void main(String[])
+}
+
+
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandHelp
+org.telegram.telegrambots.extensions.bots.commandbot.commands.IBotCommand <|.. ru.shothandTelegrambot.bot.commands.Command
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandCoder
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandServiceStatus
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandStart
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandTaskStatus
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandStartSession
+ru.shothandTelegrambot.bot.commands.Command <|-- ru.shothandTelegrambot.bot.commands.CommandSendResult
+ru.shothandTelegrambot.core.exceptions.Exception <|-- ru.shothandTelegrambot.core.exceptions.UserException
+org.telegram.telegrambots.extensions.bots.commandbot.TelegramLongPollingCommandBot <|-- ru.shothandTelegrambot.bot.BotProcessor
+@enduml

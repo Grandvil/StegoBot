@@ -103,6 +103,9 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
                     case TEXT:
                         processText(update);
                         break;
+                    case DOCUMENT:
+                        processDocument(update);
+                        break;
                 }
             } catch (UserException e) {
                 sendMessage(update.getMessage().getChatId(), e.getMessage());
@@ -131,20 +134,46 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         MessageType messageType = null;
         try {
             if (update.getMessage().getPhoto() != null)
-                messageType = MessageType.IMAGE;
-            else if (update.getMessage().getText() != null)
-                messageType = (update.getMessage().getText().matches("^/[\\w]*$")) ?
+               return MessageType.IMAGE;
+            if (update.getMessage().getText() != null)
+                return (update.getMessage().getText().matches("^/[\\w]*$")) ?
                         MessageType.COMMAND :
                         MessageType.TEXT;
-            if (messageType == null)
-                throw new IllegalArgumentException(update.toString());
-            return messageType;
+            if (update.getMessage().getDocument()!=null)
+                return  MessageType.DOCUMENT;
+
+            throw new IllegalArgumentException(update.toString());
+
         } catch (RuntimeException e) {
             log.error(String.format("Invalid message type: %s", e.getMessage()));
             throw new UserException("Неподдерживаемый тип сообщения");
         }
     }
 
+    private void processDocument(Update update) throws TelegramApiException, IOException, UserException {
+        logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), true, "$image");
+
+        try {
+            String messageStr= update.getMessage().getCaption();
+            if (messageStr.trim().equals("/decoder")) {
+                if (!update.getMessage().getDocument().getMimeType().equals("image/png")){
+                    sendMessage(update.getMessage().getChatId(), "Поддерживаются только изображения PNG");
+                    return;
+                }
+                String fileUrl =getFileUrl(update.getMessage().getDocument().getFileId());
+                String answer = httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)), "png"),
+                    Utils.getKeyByIdChat(update.getMessage().getChatId()), null, false);
+
+                sendMessage(update.getMessage().getChatId(), answer);
+            }
+            else{
+                    sendMessage(update.getMessage().getChatId(), "Ошибка команды - не распознана");
+            }
+        }
+        catch (Exception e) {
+            sendMessage(update.getMessage().getChatId(), "Ошибка команды");
+        }
+    }
 
     private void processImage(Update update) throws TelegramApiException, IOException, UserException {
         logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), true, "$image");
@@ -154,26 +183,25 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
                 String fileUrl = getFileUrl(update.getMessage().getPhoto().get(photoSizes.size() - 1).getFileId());
 
             String messageStr= update.getMessage().getCaption();
-            String cmd=messageStr.substring(0,messageStr.indexOf(' '));
-            messageStr=messageStr.substring(messageStr.indexOf(' ')+1);
-            if (!cmd.equals("/coder")){
-                sendMessage(update.getMessage().getChatId(), "Ошибка команды - не распознана");
-                return;
+            String cmd = messageStr.substring(0,messageStr.indexOf(' '));
+
+            if (cmd.equals("/coder")) {
+                messageStr = messageStr.substring(messageStr.indexOf(' ') + 1);
+
+                if (messageStr.isEmpty()) {
+                    sendMessage(update.getMessage().getChatId(), "Ошибка команды - нет текста для кодирования");
+                    return;
+                }
+                String answer = httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)), "png"),
+                        Utils.getKeyByIdChat(update.getMessage().getChatId()), messageStr, true);
+
+                sendMessage(update.getMessage().getChatId(), answer);
             }
-
-            if ( messageStr.isEmpty()){
-                sendMessage(update.getMessage().getChatId(), "Ошибка команды - нет текста для кодирования");
-                return;
-            }
-
-            String answer=httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)),"jpg"),
-                    Utils.getKeyByIdChat(update.getMessage().getChatId()), messageStr);
-
-            sendMessage(update.getMessage().getChatId(), answer);
+            else
+                sendMessage(update.getMessage().getChatId(), "Ошибка команды кодирования. Для команды декодирования отправьте png документ с командой");
 
         } catch (Exception e) {
             sendMessage(update.getMessage().getChatId(), "Ошибка команды");
-            return;
         }
     }
 

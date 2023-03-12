@@ -1,12 +1,16 @@
 package ru.shothandTelegrambot.bot;
 
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
+
 import ru.shothandTelegrambot.bot.commands.CommandHelp;
 import ru.shothandTelegrambot.bot.commands.CommandStart;
 import ru.shothandTelegrambot.bot.commands.CommandCoder;
-import ru.shothandTelegrambot.bot.commands.CommandSendResult;
+import ru.shothandTelegrambot.bot.commands.CommandDecoder;
+
 import ru.shothandTelegrambot.bot.commands.CommandServiceStatus;
 import ru.shothandTelegrambot.bot.commands.CommandStartSession;
 import ru.shothandTelegrambot.bot.commands.CommandTaskStatus;
@@ -22,11 +26,14 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import ru.shothandTelegrambot.httpClient.HttpClient;
 
+
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 
@@ -40,12 +47,115 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
     private final TelegramBotsApi telegramBotsApi;
     private List<String> registeredCommands = new ArrayList<>();
 
+    Thread threadSenderResult;
+    public boolean threadSenderResultFlagRun = true;
+
+    void threadSenderResultStart() {
+        threadSenderResult = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    HttpClient httpClientTh = new HttpClient();
+                    while (threadSenderResultFlagRun) {
+                        try {
+                            CopyOnWriteArrayList<TasksByChat> TaskByChats = Utils.getTasksByChats();
+                            for (TasksByChat task : TaskByChats) {
+                                if (task.state.equals("READY")) {
+                                    JSONObject jsonAnswer = httpClientTh.getFileFromCoderService(String.valueOf(task.numTask));
+                                    if (task.decrypt) {
+                                        try {
+                                            String txt = jsonAnswer.getString("text");
+                                            if (txt != null) {
+                                                sendMessage(task.idChat, task.idMessage, "Номер задачи: " +
+                                                        String.valueOf(Utils.getTaskNumInChat(task.idChat, task.numTask)) + " \nРасшифрованный текст: " + txt);
+                                                TaskByChats.remove(task);
+                                                continue;
+                                            }
+                                            sendMessage(task.idChat, task.idMessage, "Номер задачи:" +
+                                                    String.valueOf(Utils.getTaskNumInChat(task.idChat, task.numTask)) + " \nДекодированный текст пуст!");
+                                            TaskByChats.remove(task);
+                                            continue;
+                                        } catch (JSONException ignored) {
+                                            TaskByChats.remove(task);
+                                        }
+                                    } else {
+                                        BufferedImage img = Utils.base64StringToImg(jsonAnswer.getString("image"));
+
+                                        if (img == null) {
+                                            sendMessage(task.idChat, task.idMessage, "Номер задачи:" +
+                                                    String.valueOf(Utils.getTaskNumInChat(task.idChat, task.numTask)) + " \nНет данных в изображении");
+                                            TaskByChats.remove(task);
+                                            continue;
+                                        }
+                                        try {
+                                            File result = File.createTempFile(String.valueOf(task.idChat) + String.valueOf(task.numTask), ".png");
+                                            FileOutputStream out = new FileOutputStream(result);
+
+                                            ImageIO.write(img, "png", out);
+                                            SendDocument doc = new SendDocument();
+                                            doc.setChatId(String.valueOf(task.idChat));
+                                            doc.setReplyToMessageId(task.idMessage);
+                                            doc.setDocument(new InputFile(result, String.format("%s.png", String.valueOf(task.idChat) +
+                                                    String.valueOf(task.numTask))));
+                                            doc.setCaption(String.valueOf(Utils.getTaskNumInChat(task.idChat, task.numTask)));
+
+                                            execute(doc); //отсылаем
+                                            TaskByChats.remove(task);
+
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                            sendMessage(task.idChat, task.idMessage, "Номер задачи:" +
+                                                    String.valueOf(Utils.getTaskNumInChat(task.idChat, task.numTask)) + " \nОшибка отсылки документа");
+                                            TaskByChats.remove(task);
+                                        }
+                                    }
+                                } else { //обновить статус задачи
+                                    if (task.state.equals("FAULT") || task.state.equals("NOTFOUND")) {
+                                        sendMessage(task.idChat, task.idMessage, "Номер задачи:" +
+                                                String.valueOf(Utils.getTaskNumInChat(task.idChat, task.numTask)) + " \nОшибка задачи или не найдена");
+                                        TaskByChats.remove(task);
+                                        continue;
+                                    }
+                                    task.state = httpClientTh.getTaskStateService(String.valueOf(task.numTask));
+                                }
+
+                            }
+                        } catch (Exception ignored) {
+                        }
+                        ;
+                        Thread.sleep(100); //не быстрее 100мс поток крутится
+                    }
+                } catch (Exception e) {
+                    System.out.println("threadSenderResult exception: " + e.toString());
+                    e.printStackTrace();
+                }
+            }
+        });
+        threadSenderResult.start();
+    }
+
     public void sendMessage(Long chatId, String message) {
         try {
             SendMessage sendMessage = SendMessage
                     .builder()
                     .chatId(chatId.toString())
                     .text(message)
+                    .replyMarkup(Utils.getKeyboard())
+                    .build();
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            log.error(String.format("Sending message error: %s", e.getMessage()));
+        }
+    }
+
+    public void sendMessage(Long chatId, int messageId, String message) {
+        try {
+            SendMessage sendMessage = SendMessage
+                    .builder()
+                    .chatId(chatId.toString())
+                    .replyToMessageId(messageId)
+                    .text(message)
+                    .replyMarkup(Utils.getKeyboard())
                     .build();
             execute(sendMessage);
         } catch (TelegramApiException e) {
@@ -62,14 +172,6 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         } catch (TelegramApiException e) {
             log.error(String.format("Sending image error: %s", e.getMessage()));
             throw new UserException("Ошибка отправки изображения");
-        }
-    }
-
-    public void sendQRImage(Long chatId, String path) throws UserException {
-        sendImage(chatId, path);
-        File file = new File(path);
-        if (!file.delete()) {
-            log.error(String.format("File '%s' removing error", path));
         }
     }
 
@@ -109,7 +211,7 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
                 }
             } catch (UserException e) {
                 sendMessage(update.getMessage().getChatId(), e.getMessage());
-            } catch (TelegramApiException | RuntimeException | IOException  e) {
+            } catch (TelegramApiException | RuntimeException | IOException e) {
                 log.error(String.format("Received message processing error: %s", e.getMessage()));
                 sendMessage(update.getMessage().getChatId(), "Ошибка обработки сообщения");
             }
@@ -127,6 +229,13 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
     }
 
     private void processText(Update update) throws TelegramApiException, IOException, UserException {
+        if (Utils.fWaitKeySession) {
+            Utils.fWaitKeySession = false;
+            Utils.addOrUpdateKey(update.getMessage().getText(), update.getMessage().getChatId());
+            sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(),
+                    "Ключ добавлен! Для запуска кодирования воспользуйтесь командой /coder, для декодирования - /decoder");
+            return;
+        }
         sendMessage(update.getMessage().getChatId(), "Ошибка команды. Пришлите /help");
     }
 
@@ -134,13 +243,13 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         MessageType messageType = null;
         try {
             if (update.getMessage().getPhoto() != null)
-               return MessageType.IMAGE;
+                return MessageType.IMAGE;
             if (update.getMessage().getText() != null)
                 return (update.getMessage().getText().matches("^/[\\w]*$")) ?
                         MessageType.COMMAND :
                         MessageType.TEXT;
-            if (update.getMessage().getDocument()!=null)
-                return  MessageType.DOCUMENT;
+            if (update.getMessage().getDocument() != null)
+                return MessageType.DOCUMENT;
 
             throw new IllegalArgumentException(update.toString());
 
@@ -154,24 +263,42 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), true, "$image");
 
         try {
-            String messageStr= update.getMessage().getCaption();
-            if (messageStr.trim().equals("/decoder")) {
-                if (!update.getMessage().getDocument().getMimeType().equals("image/png")){
-                    sendMessage(update.getMessage().getChatId(), "Поддерживаются только изображения PNG");
-                    return;
-                }
-                String fileUrl =getFileUrl(update.getMessage().getDocument().getFileId());
-                String answer = httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)), "png"),
-                    Utils.getKeyByIdChat(update.getMessage().getChatId()), null, false);
+            String messageStr = update.getMessage().getCaption();
 
-                sendMessage(update.getMessage().getChatId(), answer);
+            if (!update.getMessage().getDocument().getMimeType().equals("image/png")) {
+                sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), "Поддерживаются только изображения PNG");
+                return;
             }
-            else{
-                    sendMessage(update.getMessage().getChatId(), "Ошибка команды - не распознана");
+            if (Utils.getKeyByIdChat(update.getMessage().getChatId()) == null) {
+                sendMessage(update.getMessage().getChatId(), "Ключ сессии не задан! Задайте ключ командой /startsession <ключ>");
+                return;
             }
-        }
-        catch (Exception e) {
-            sendMessage(update.getMessage().getChatId(), "Ошибка команды");
+
+            String fileUrl = getFileUrl(update.getMessage().getDocument().getFileId());
+            String answer = null;
+            try {
+                answer = httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)), "png"),
+                        Utils.getKeyByIdChat(update.getMessage().getChatId()), null, false);
+
+                String mess = "";
+                if (answer != null) {
+                    JSONObject jsonObj = new JSONObject(answer);
+                    Utils.AddTaskByChat(update.getMessage().getChatId(), update.getMessage().getMessageId(), Long.parseLong(jsonObj.getString("numTask")), true);
+                    Utils.setUserNumForTask(update.getMessage().getChatId());
+                    mess = "Номер задачи: " +
+                            String.valueOf(Utils.getTaskNumInChat(update.getMessage().getChatId(), Long.parseLong(jsonObj.getString("numTask"))))
+                            + ". Среднее время ожидания результата: 30 секунд";
+                } else
+                    mess = "Ошибка сервиса";
+
+                sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), mess);
+            } catch (Exception e) {
+                sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), "Ошибка сервиса");
+                return;
+            }
+
+        } catch (Exception e) {
+            sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), "Ошибка команды");
         }
     }
 
@@ -179,26 +306,42 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         logMessage(update.getMessage().getChatId(), update.getMessage().getFrom().getId(), true, "$image");
 
         try {
-                List<PhotoSize> photoSizes = update.getMessage().getPhoto();
-                String fileUrl = getFileUrl(update.getMessage().getPhoto().get(photoSizes.size() - 1).getFileId());
+            List<PhotoSize> photoSizes = update.getMessage().getPhoto();
+            String fileUrl = getFileUrl(update.getMessage().getPhoto().get(photoSizes.size() - 1).getFileId());
 
-            String messageStr= update.getMessage().getCaption();
-            String cmd = messageStr.substring(0,messageStr.indexOf(' '));
+            String messageStr = update.getMessage().getCaption();
 
-            if (cmd.equals("/coder")) {
-                messageStr = messageStr.substring(messageStr.indexOf(' ') + 1);
 
-                if (messageStr.isEmpty()) {
-                    sendMessage(update.getMessage().getChatId(), "Ошибка команды - нет текста для кодирования");
-                    return;
-                }
-                String answer = httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)), "png"),
-                        Utils.getKeyByIdChat(update.getMessage().getChatId()), messageStr, true);
-
-                sendMessage(update.getMessage().getChatId(), answer);
+            if (messageStr.isEmpty()) {
+                sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), "Ошибка команды - нет текста для кодирования");
+                return;
             }
-            else
-                sendMessage(update.getMessage().getChatId(), "Ошибка команды кодирования. Для команды декодирования отправьте png документ с командой");
+            if (Utils.getKeyByIdChat(update.getMessage().getChatId()) == null) {
+                sendMessage(update.getMessage().getChatId(), "Ключ сессии не задан! Задайте ключ командой /startsession <ключ>");
+                return;
+            }
+            String answer = null;
+            try {
+                answer = httpClient.sendFileToCoderService(Utils.imgToBase64String(ImageIO.read(new URL(fileUrl)), "png"),
+                        Utils.getKeyByIdChat(update.getMessage().getChatId()), messageStr, true);
+                String mess = "";
+                if (answer != null) {
+                    JSONObject jsonObj = new JSONObject(answer);
+
+                    Utils.AddTaskByChat(update.getMessage().getChatId(), update.getMessage().getMessageId(), Long.parseLong(jsonObj.getString("numTask")), false);
+                    Utils.setUserNumForTask(update.getMessage().getChatId());
+
+                    mess = "Номер задачи: " +
+                            String.valueOf(Utils.getTaskNumInChat(update.getMessage().getChatId(), Long.parseLong(jsonObj.getString("numTask"))))
+                            + ". Среднее время ожидания результата: 30 секунд";
+                } else
+                    mess = "Ошибка сервиса";
+
+                sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), mess);
+            } catch (Exception e) {
+                sendMessage(update.getMessage().getChatId(), update.getMessage().getMessageId(), "Ошибка сервиса");
+                return;
+            }
 
         } catch (Exception e) {
             sendMessage(update.getMessage().getChatId(), "Ошибка команды");
@@ -236,10 +379,11 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
         register(new CommandStart());
         register(new CommandHelp());
         register(new CommandStartSession());
-        register(new CommandCoder(httpClient));
-        register(new CommandSendResult(httpClient));
+        register(new CommandCoder());
+        register(new CommandDecoder());
+
         register(new CommandServiceStatus(httpClient));
-        register(new CommandTaskStatus(httpClient));
+        register(new CommandTaskStatus());
         setRegisteredCommands();
     }
 
@@ -269,5 +413,6 @@ public class BotProcessor extends TelegramLongPollingCommandBot {
 
     public BotProcessor() {
         super();
+        threadSenderResultStart();
     }
 }

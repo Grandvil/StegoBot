@@ -13,6 +13,7 @@ public class StegoServiceUtils {
         try (final OutputStream b64os = Base64.getUrlEncoder().wrap(os)) {
             ImageIO.write(img, formatName, b64os);
         } catch (final IOException ioe) {
+            System.out.println("imgToBase64String exception:" + ioe.toString());
             throw new UncheckedIOException(ioe);
         }
         return os.toString();
@@ -22,6 +23,7 @@ public class StegoServiceUtils {
         try {
             return ImageIO.read(new ByteArrayInputStream(Base64.getUrlDecoder().decode(base64String)));
         } catch (final IOException ioe) {
+            System.out.println("base64StringToImg exception:" + ioe.toString());
             throw new UncheckedIOException(ioe);
         }
     }

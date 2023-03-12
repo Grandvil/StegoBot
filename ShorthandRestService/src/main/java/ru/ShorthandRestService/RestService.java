@@ -12,28 +12,25 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 
-import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import ru.Shorthand.StegoServiceCore;
 
-public class RestService extends HttpServlet
-{
+public class RestService extends HttpServlet {
     /**
      *
      */
     private static final long serialVersionUID = 102831973239L;
 
-    String buildBadCommand(String description){
+    String buildBadCommand(String description) {
         try {
             JSONObject answer = new JSONObject();
-            answer.put("coder","BAD_COMMAND");
+            answer.put("coder", "BAD_COMMAND");
             answer.put("description", description);
             return answer.toString();
-        }
-        catch (JSONException e){
+        } catch (JSONException e) {
             e.printStackTrace();
-            System.out.println("RestService: JSON error: "+e.toString());
+            System.out.println("RestService: JSON error: " + e.toString());
             return "Json error";
         }
     }
@@ -43,46 +40,41 @@ public class RestService extends HttpServlet
         // TODO Auto-generated method stub
         super.init();
     }
-    public void doGet(HttpServletRequest req,HttpServletResponse res)
-            throws ServletException,IOException
-    {
+
+    public void doGet(HttpServletRequest req, HttpServletResponse res)
+            throws ServletException, IOException {
         res.setCharacterEncoding("UTF-8");
         PrintWriter out = res.getWriter();
-        //res.setContentType("text/html");
+
         res.setContentType("application/json");
-        //get core coder
+
         StegoServiceCore core;
         ServletContext context = getServletContext();
-        core=(StegoServiceCore)context.getAttribute("core");
-        if (core == null){
+        core = (StegoServiceCore) context.getAttribute("core");
+        if (core == null) {
             out.println("core in context not found");
             return;
         }
 
-        String numTaskStr=null;
-        int numTask=0;
+        String numTaskStr = null;
+        int numTask = 0;
 
-        switch (req.getParameter("cmd"))
-        {
+        switch (req.getParameter("cmd")) {
             case "status":
                 out.println(core.getServiceStatus());
                 break;
 
             case "taskstate":
-//                if (req.getHeader("numTask") == null){
-//                    out.println(buildBadCommand("Отсутствует параметр номера задачи"));
-//                    return;
-//                }
-                numTaskStr=req.getParameter("numTask");
-                if (numTaskStr==null) {
+
+                numTaskStr = req.getParameter("numTask");
+                if (numTaskStr == null) {
                     out.println(buildBadCommand("Отсутствует номер задачи"));
                     return;
                 }
 
                 try {
                     numTask = Integer.parseInt(numTaskStr);
-                }
-                catch (Exception e){
+                } catch (Exception e) {
                     out.println(buildBadCommand("Не возможно преобразовать номер задачи в число"));
                     return;
                 }
@@ -96,20 +88,16 @@ public class RestService extends HttpServlet
                 break;
 
             case "getResult":
-//                if (req.getHeader("numTask") == null){
-//                    out.println(buildBadCommand("Отсутствует параметр номера задачи"));
-//                    return;
-//                }
-                numTaskStr=req.getParameter("numTask");
-                if (numTaskStr==null) {
+
+                numTaskStr = req.getParameter("numTask");
+                if (numTaskStr == null) {
                     out.println(buildBadCommand("Отсутствует номер задачи"));
                     return;
                 }
 
                 try {
                     numTask = Integer.parseInt(numTaskStr);
-                }
-                catch (Exception e){
+                } catch (Exception e) {
                     out.println(buildBadCommand("Не возможно преобразовать номер задачи в число"));
                     return;
                 }
@@ -119,7 +107,7 @@ public class RestService extends HttpServlet
 
             default:
                 out.println(buildBadCommand("Не распознанная команда"));
-                System.out.println("RestService bad cmd request: "+req.getParameter("cmd"));
+                System.out.println("RestService bad cmd request: " + req.getParameter("cmd"));
                 break;
         }
     }
@@ -132,15 +120,15 @@ public class RestService extends HttpServlet
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        //get core coder
+
         StegoServiceCore core;
         ServletContext context = getServletContext();
-        core=(StegoServiceCore)context.getAttribute("core");
-        if (core == null){
+        core = (StegoServiceCore) context.getAttribute("core");
+        if (core == null) {
             out.println("core in context not found");
             return;
         }
-        // 1. get received JSON data from request
+
         BufferedReader br = new BufferedReader(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8));
 
         StringBuilder sb = new StringBuilder();
@@ -151,63 +139,60 @@ public class RestService extends HttpServlet
         }
 
         JSONObject post;
-        String image,stegoKey,text;
-        switch (request.getParameter("cmd"))
-        {
+        String image, stegoKey, text;
+        switch (request.getParameter("cmd")) {
             case "coder":
 
                 try {
                     post = new JSONObject(sb.toString());
-                    image=post.getString("image");
-                    if (image==null) {
+                    image = post.getString("image");
+                    if (image == null) {
                         out.println(buildBadCommand("Отсутствует изображение в запросе"));
                         return;
                     }
-                    stegoKey=post.getString("key");
-                    if (stegoKey==null) {
+                    stegoKey = post.getString("key");
+                    if (stegoKey == null) {
                         out.println(buildBadCommand("Отсутствует ключ в запросе"));
                         return;
                     }
-                    text=post.getString("text");
-                    if (text==null) {
+                    text = post.getString("text");
+                    if (text == null) {
                         out.println(buildBadCommand("Отсутствует текст для кодирования в запросе"));
                         return;
                     }
                 } catch (JSONException e) {
-                    out.println(buildBadCommand("Не верный JSON. Подробности:"+e.toString()));
+                    out.println(buildBadCommand("Не верный JSON. Подробности:" + e.toString()));
                     return;
                 }
 
-                out.println(core.addNewTask(image,stegoKey,text,false));
+                out.println(core.addNewTask(image, stegoKey, text, false));
                 break;
             case "decoder":
                 try {
                     post = new JSONObject(sb.toString());
-                    image=post.getString("image");
-                    if (image==null) {
+                    image = post.getString("image");
+                    if (image == null) {
                         out.println(buildBadCommand("Отсутствует изображение в запросе"));
                         return;
                     }
-                    stegoKey=post.getString("key");
-                    if (stegoKey==null) {
+                    stegoKey = post.getString("key");
+                    if (stegoKey == null) {
                         out.println(buildBadCommand("Отсутствует ключ в запросе"));
                         return;
                     }
 
                 } catch (JSONException e) {
-                    out.println(buildBadCommand("Не верный JSON. Подробности:"+e.toString()));
+                    out.println(buildBadCommand("Не верный JSON. Подробности:" + e.toString()));
                     return;
                 }
 
-                out.println(core.addNewTask(image,stegoKey,null,true));
+                out.println(core.addNewTask(image, stegoKey, null, true));
                 break;
             default:
                 out.println(buildBadCommand("Не распознанная команда для метода POST"));
-                System.out.println("RestService bad cmd request: "+request.getParameter("cmd"));
+                System.out.println("RestService bad cmd request: " + request.getParameter("cmd"));
                 break;
         }
-
-
 
 
     }

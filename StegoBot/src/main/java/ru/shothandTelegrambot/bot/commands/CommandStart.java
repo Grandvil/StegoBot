@@ -9,8 +9,7 @@ public class CommandStart extends Command {
     public void processMessage(AbsSender absSender, Message message, String[] strings) {
         message.setText("Добро пожаловать! Я бот, который поможет Вам зашифровать Ваш текст в изображение при помощи стеганографии и стегоключа." +
                 " Если Вам нужна помощь по перечню доступных команд, нажмите /help \n\n" +
-                 "Для начала сессии введите команду /startsession ваш-ключ-пароль (через пробел) \n" +
-                "Пример: /startsession 123");
+                "Для начала сессии введите команду /startsession (или нажмите кнопку) \n");
         super.processMessage(absSender, message, null);
     }
 

@@ -19,44 +19,41 @@ public class CommandSendResult extends Command {
 
     @Override
     public void processMessage(AbsSender absSender, Message message, String[] strings) {
-        if (strings[0].isEmpty()){
+        if (strings[0].isEmpty()) {
             message.setText("Укажите номер задачи");
             super.processMessage(absSender, message, null);
             return;
         }
-        JSONObject jsonAnswer=httpClient.getFileFromCoderService(strings[0]);
-        try{
-            String txt=jsonAnswer.getString("text");
-            if (txt!=null){
-                message.setText("Расшифрованный текст: "+txt);
+        JSONObject jsonAnswer = httpClient.getFileFromCoderService(strings[0]);
+        try {
+            String txt = jsonAnswer.getString("text");
+            if (txt != null) {
+                message.setText("Расшифрованный текст: " + txt);
                 super.processMessage(absSender, message, null);
                 return;
             }
             message.setText("Декодированный текст пуст!");
             super.processMessage(absSender, message, null);
             return;
+        } catch (JSONException ignored) {
         }
-        catch (JSONException ignored) {};
 
-        BufferedImage img= Utils.base64StringToImg(jsonAnswer.getString("image"));
+        BufferedImage img = Utils.base64StringToImg(jsonAnswer.getString("image"));
 
-        if (img==null){
+        if (img == null) {
             message.setText("Нет данных в изображении");
             super.processMessage(absSender, message, null);
             return;
         }
-        try
-        {
-        File result = File.createTempFile(message.getChatId().toString()+strings[0], ".png");
-        FileOutputStream out = new FileOutputStream(result);
-        //File outputfile = new File("image.jpg");
-        //ImageIO.write(bufferedImage, "jpg", outputfile);
-        ImageIO.write(img,"png",out);
-        SendDocument doc = new SendDocument();
-        doc.setChatId(message.getChatId().toString());
-        doc.setDocument(new InputFile(result, String.format("%s.png", message.getChatId().toString()+strings[0])));
+        try {
+            File result = File.createTempFile(message.getChatId().toString() + strings[0], ".png");
+            FileOutputStream out = new FileOutputStream(result);
+            ImageIO.write(img, "png", out);
+            SendDocument doc = new SendDocument();
+            doc.setChatId(message.getChatId().toString());
+            doc.setDocument(new InputFile(result, String.format("%s.png", message.getChatId().toString() + strings[0])));
 
-        super.processDocument(absSender,doc);
+            super.processDocument(absSender, doc);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -67,7 +64,7 @@ public class CommandSendResult extends Command {
 
     public CommandSendResult(HttpClient httpClient) {
         super("sr", "Прислать результат");
-        this.httpClient=httpClient;
+        this.httpClient = httpClient;
     }
 
 }

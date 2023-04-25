@@ -1,5 +1,6 @@
 package org.randomlsb.Core;
 
+
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Random;
@@ -22,43 +23,102 @@ public class StegoCore {
         return numPix;
     }
 
-    public BufferedImage Encrypt(String pathImg, String keyForSeed, String txt) throws Exception {
-
-        Random rnd = new Random(StegoUtils.getSeedFromStrKey(keyForSeed));
-        String txtCrypt = txt + '\0';
-
+    public String info(String pathImg, String txt) throws Exception {
         BufferedImage img = StegoUtils.fetchImage(pathImg);
         int imgSize = img.getWidth() * img.getHeight();
+        double percent = (double) txt.length() * 100 / imgSize;
 
-        idxPix.clear();
-        // цикл шифрования
-        for (char b : txtCrypt.toCharArray()) {
+        return "Использование контейнера на " + percent + "% " +
+                "Длина строки:" + txt.length() + ". Длина контейнера:" + imgSize;
+    }
 
-            int numPix = findFreePixel(imgSize, rnd);
+    public BufferedImage EncryptToImgMap(String pathImg, String keyForSeed, String txt, int color) throws Exception {
+
+        try {
+            Random rnd = new Random(StegoUtils.getSeedFromStrKey(keyForSeed));
+            String txtCrypt = txt + '\0'; //end message for decoder
+
+            BufferedImage img = StegoUtils.fetchImage(pathImg);
+            int imgSize = img.getWidth() * img.getHeight();
+
+            idxPix.clear();
+            // цикл шифрования
+            for (char b : txtCrypt.toCharArray()) {
+
+                int numPix = findFreePixel(imgSize, rnd);
 
 
-            int thisChar = b;
+                int thisChar = b;
 
-            if (thisChar > 1000) thisChar -= 890;    // код кириллицы больше -> уменьшаем
+                if (thisChar > 1000) thisChar -= 890;    // код кириллицы больше -> уменьшаем
 
-            int i = numPix / img.getWidth();
-            int j = numPix - (i * img.getWidth());
 
-            int thisColor = img.getRGB(i, j);  // читаем пиксель
+                int j = numPix / img.getWidth();
+                int i = numPix - (j * img.getWidth());
 
-            // упаковка в RGB 323
-            int newColor = (thisColor & 0xF80000);   // 11111000 00000000 00000000
-            newColor |= (thisChar & 0xE0) << 11;     // 00000111 00000000 00000000
-            newColor |= (thisColor & (0x3F << 10));  // 00000000 11111100 00000000
-            newColor |= (thisChar & 0x18) << 5;      // 00000000 00000011 00000000
-            newColor |= (thisColor & (0x1F << 3));   // 00000000 00000000 11111000
-            newColor |= (thisChar & 0x7);            // 00000000 00000000 00000111
 
-            img.setRGB(i, j, newColor);
+                // упаковка в RGB 323
+//                int newColor = (thisColor & 0xF80000);   // 11111000 00000000 00000000
+//                newColor |= (thisChar & 0xE0) << 11;     // 00000111 00000000 00000000
+//                newColor |= (thisColor & (0x3F << 10));  // 00000000 11111100 00000000
+//                newColor |= (thisChar & 0x18) << 5;      // 00000000 00000011 00000000
+//                newColor |= (thisColor & (0x1F << 3));   // 00000000 00000000 11111000
+//                newColor |= (thisChar & 0x7);            // 00000000 00000000 00000111
+
+                img.setRGB(i, j, color);
+            }
+            idxPix.clear();
+
+            return img;
+        } catch (Exception e) {
+            System.out.println("Message : " + e);
         }
-        idxPix.clear();
+        return null;
+    }
 
-        return img;
+    public BufferedImage Encrypt(String pathImg, String keyForSeed, String txt) throws Exception {
+
+        try {
+            Random rnd = new Random(StegoUtils.getSeedFromStrKey(keyForSeed));
+            String txtCrypt = txt + '\0'; //end message for decoder
+
+            BufferedImage img = StegoUtils.fetchImage(pathImg);
+            int imgSize = img.getWidth() * img.getHeight();
+
+            idxPix.clear();
+            // цикл шифрования
+            for (char b : txtCrypt.toCharArray()) {
+
+                int numPix = findFreePixel(imgSize, rnd);
+
+
+                int thisChar = b;
+
+                if (thisChar > 1000) thisChar -= 890;    // код кириллицы больше -> уменьшаем
+
+
+                int j = numPix / img.getWidth();
+                int i = numPix - (j * img.getWidth());
+
+                int thisColor = img.getRGB(i, j);  // читаем пиксель
+
+                // упаковка в RGB 323
+                int newColor = (thisColor & 0xF80000);   // 11111000 00000000 00000000
+                newColor |= (thisChar & 0xE0) << 11;     // 00000111 00000000 00000000
+                newColor |= (thisColor & (0x3F << 10));  // 00000000 11111100 00000000
+                newColor |= (thisChar & 0x18) << 5;      // 00000000 00000011 00000000
+                newColor |= (thisColor & (0x1F << 3));   // 00000000 00000000 11111000
+                newColor |= (thisChar & 0x7);            // 00000000 00000000 00000111
+
+                img.setRGB(i, j, newColor);
+            }
+            idxPix.clear();
+
+            return img;
+        } catch (Exception e) {
+            System.out.println("Message : " + e);
+        }
+        return null;
     }
 
     public String Decode(String pathImg, String keyForSeed) throws Exception {
@@ -75,8 +135,8 @@ public class StegoCore {
 
             int numPix = findFreePixel(imgSize, rnd);
 
-            int i = numPix / img.getWidth();
-            int j = numPix - (i * img.getWidth());
+            int j = numPix / img.getWidth();
+            int i = numPix - (j * img.getWidth());
 
             // читаем пиксель
             int thisColor = img.getRGB(i, j);

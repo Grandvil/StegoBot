@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="current" type="Application" factoryName="Application">
-    <option name="MAIN_CLASS_NAME" value="org.randomlsb.Main" />
+    <option name="MAIN_CLASS_NAME" value="org.randomlsb.form" />
     <module name="RandomLSB" />
     <method v="2">
       <option name="Make" enabled="true" />
